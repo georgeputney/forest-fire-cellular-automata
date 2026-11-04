@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.DS_Store
+*.swp
+
+# Written by CAPyLE on every run. The folder itself must exist for the GUI.
+/temp/*
+!/temp/.gitkeep
