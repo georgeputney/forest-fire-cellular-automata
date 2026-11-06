@@ -81,8 +81,11 @@ def setup(args):
 
 # Function to apply the transition rules and return the new grid
 def transition_function(grid, neighbourstates, neighbourcounts):
-    # YOUR CODE HERE
+    catches_fire = (neighbourcounts[BURNING] >= 1) & (grid != LAKE)
+    grid[catches_fire] = BURNING
+
     return grid
+
 
 
 # Main function that sets up, runs and saves CA
