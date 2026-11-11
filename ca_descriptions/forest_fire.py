@@ -18,6 +18,15 @@ import capyle.utils as utils
 import numpy as np
 
 CHAPARRAL, FOREST, CANYON, LAKE, TOWN, BURNING = range(6)
+BURNT_CHAPARRAL, BURNT_FOREST, BURNT_CANYON, BURNT_TOWN = range(6, 10)
+
+# Per-terrain values, indexed [CHAPARRAL, FOREST, CANYON, LAKE, TOWN]
+# Steps each terrain burns for
+BURN_STEPS = np.array([3, 10, 1, 0, 3])
+# State each terrain becomes once burnt out (lakes never burn)
+BURNT_STATES = np.array([BURNT_CHAPARRAL, BURNT_FOREST, BURNT_CANYON,
+                         LAKE, BURNT_TOWN])
+
 CELL_KM = 0.25
 GRID_SIZE = 200
 
@@ -51,14 +60,19 @@ def build_terrain():
 def setup(args):
     config_path = args[0]
     config = utils.load(config_path)
+
     # -- THE CA MUST BE RELOADED IN THE GUI IF ANY OF THE BELOW ARE CHANGED --
 
     config.title = "Forest fire"
     config.dimensions = 2
-    config.states = (CHAPARRAL, FOREST, CANYON, LAKE, TOWN, BURNING)
+    config.states = (CHAPARRAL, FOREST, CANYON, LAKE, TOWN, BURNING,
+                     BURNT_CHAPARRAL, BURNT_FOREST, BURNT_CANYON, BURNT_TOWN)
 
     config.state_colors = [(0.75, 0.75, 0), (0.3, 0.35, 0.15), (1, 1, 0.2),
-                           (0.2, 0.6, 1), (0, 0, 0), (1, 0.2, 0)]
+                           (0.2, 0.6, 1), (0, 0, 0), (1, 0.2, 0),
+                           (0.4, 0.38, 0.25), (0.25, 0.25, 0.2),
+                           (0.55, 0.52, 0.4), (0.45, 0.45, 0.45)]
+
     config.grid_dims = (GRID_SIZE, GRID_SIZE)
     config.num_generations = 300
     config.wrap = False
@@ -80,9 +94,18 @@ def setup(args):
 
 
 # Function to apply the transition rules and return the new grid
-def transition_function(grid, neighbourstates, neighbourcounts):
-    catches_fire = (neighbourcounts[BURNING] >= 1) & (grid != LAKE)
+def transition_function(grid, neighbourstates, neighbourcounts, terrain, burn_time):
+    # Work out every mask from the current grid before changing it
+    has_fuel = np.isin(grid, [CHAPARRAL, FOREST, CANYON, TOWN])
+    catches_fire = (neighbourcounts[BURNING] >= 1) & has_fuel
+    burning = grid == BURNING
+
+    # Count how long each burning cell has been alight
+    burn_time[burning] += 1
+    burnt_out = burning & (burn_time >= BURN_STEPS[terrain])
+
     grid[catches_fire] = BURNING
+    grid[burnt_out] = BURNT_STATES[terrain[burnt_out]]
 
     return grid
 
@@ -93,8 +116,14 @@ def main():
     # Get the config object from set up
     config = setup(sys.argv[1:])
 
+    # Original terrain map, so burning cells still know what fuel they had
+    terrain = build_terrain()
+
+    # Number of steps each cell has been burning for, kept between steps
+    burn_time = np.zeros((GRID_SIZE, GRID_SIZE))
+
     # Create grid object using parameters from config + transition function
-    grid = Grid2D(config, transition_function)
+    grid = Grid2D(config, (transition_function, terrain, burn_time))
 
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
