@@ -27,6 +27,12 @@ BURN_STEPS = np.array([3, 10, 1, 0, 3])
 BURNT_STATES = np.array([BURNT_CHAPARRAL, BURNT_FOREST, BURNT_CANYON,
                          LAKE, BURNT_TOWN])
 
+# Base chance a burning neighbour spreads fire, with no wind or slope
+# (Alexandridis et al. 2008, Table 4)
+P_H = 0.58
+# Ignition adjustment per terrain, our own values ordered by the brief
+VEG_FACTOR = np.array([0, -0.4, 0.4, 0, 0])
+
 CELL_KM = 0.25
 GRID_SIZE = 200
 
@@ -97,7 +103,12 @@ def setup(args):
 def transition_function(grid, neighbourstates, neighbourcounts, terrain, burn_time):
     # Work out every mask from the current grid before changing it
     has_fuel = np.isin(grid, [CHAPARRAL, FOREST, CANYON, TOWN])
-    catches_fire = (neighbourcounts[BURNING] >= 1) & has_fuel
+    
+    # Each burning neighbour gets an independent chance to ignite the cell
+    p_burn = P_H * (1 + VEG_FACTOR[terrain])
+    p_ignite = 1 - (1 - p_burn) ** neighbourcounts[BURNING]
+    catches_fire = has_fuel & (np.random.random(grid.shape) < p_ignite)
+
     burning = grid == BURNING
 
     # Count how long each burning cell has been alight
