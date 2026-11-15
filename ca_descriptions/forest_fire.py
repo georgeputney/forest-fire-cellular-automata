@@ -55,6 +55,12 @@ SPREAD_BEARINGS = np.array([135, 180, 225, 90, 270, 45, 0, 315])
 CELL_KM = 0.5
 GRID_SIZE = 100
 
+# Ignition sites from the brief, as (row, column) with row 0 at the north edge
+POWER_PLANT = (0, 0)
+INCINERATOR = (0, GRID_SIZE - 1)
+# Where the fire starts in this run
+IGNITION = INCINERATOR
+
 
 def to_cells(km):
     # Adding 0.5 rounds halves up, so the 2.5 km town stays 5 cells wide
@@ -105,7 +111,7 @@ def setup(args):
     config.wrap = False
 
     terrain = build_terrain()
-    terrain[0, GRID_SIZE - 1] = FIRE_FRONT
+    terrain[IGNITION] = FIRE_FRONT
     config.initial_grid = terrain
 
     # ----------------------------------------------------------------------
