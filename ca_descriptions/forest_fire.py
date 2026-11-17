@@ -24,8 +24,10 @@ BURNT_CHAPARRAL, BURNT_FOREST, BURNT_CANYON, BURNT_TOWN = range(6, 10)
 BURNT_STATES = np.array([BURNT_CHAPARRAL, BURNT_FOREST, BURNT_CANYON,
                          LAKE, BURNT_TOWN])
 
-# Real minutes per step, set by how fast the fire front crosses a cell
-STEP_MINUTES = 30
+# Real minutes per step. Fire moves at most one cell per step, so 500 m
+# every 10 minutes gives a top speed of 3 km/h, about 10% of an 8 m/s wind
+# (Cruz and Alexander 2019)
+STEP_MINUTES = 10
 # Hours each terrain keeps burning, midpoints of the team's ranges
 # (canyon 1 to 6 hours, chaparral 2 to 5 days, forest 2 to 4 weeks)
 BURN_HOURS = np.array([84, 504, 3.5, 0, 84])
