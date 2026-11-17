@@ -63,6 +63,18 @@ INCINERATOR = (0, GRID_SIZE - 1)
 # Where the fire starts in this run
 IGNITION = INCINERATOR
 
+# Cells soaked by the water drop, which cannot burn until they dry
+WET = 11
+
+# Water drop for Q3, enough water to cover about 12.5 km2
+DROP_HOURS = 6      # hours after ignition the water is dropped
+WET_HOURS = 12      # hours until soaked cells dry out
+# Drop area in km as (left, right, bottom, top), here 10 km x 1.25 km
+DROP_AREA = (15, 25, 7.5, 8.75)
+DROP_STEP = int(DROP_HOURS * 60 / STEP_MINUTES)
+DRY_STEP = DROP_STEP + int(WET_HOURS * 60 / STEP_MINUTES)
+
+
 
 def to_cells(km):
     # Adding 0.5 rounds halves up, so the 2.5 km town stays 5 cells wide
@@ -101,12 +113,13 @@ def setup(args):
     config.dimensions = 2
     config.states = (CHAPARRAL, FOREST, CANYON, LAKE, TOWN, BURNING,
                      BURNT_CHAPARRAL, BURNT_FOREST, BURNT_CANYON, BURNT_TOWN,
-                     FIRE_FRONT)
+                     FIRE_FRONT, WET)
 
     config.state_colors = [(0.75, 0.75, 0), (0.3, 0.35, 0.15), (1, 1, 0.2),
                            (0.2, 0.6, 1), (0, 0, 0), (1, 0.2, 0),
                            (0.4, 0.38, 0.25), (0.25, 0.25, 0.2),
-                           (0.55, 0.52, 0.4), (0.45, 0.45, 0.45), (1, 0.65, 0)]
+                           (0.55, 0.52, 0.4), (0.45, 0.45, 0.45), (1, 0.65, 0),
+                           (0.6, 0.85, 1)]
 
     config.grid_dims = (GRID_SIZE, GRID_SIZE)
     config.num_generations = 1000
@@ -138,7 +151,21 @@ def wind_factors(wind_from, speed):
 
 # Function to apply the transition rules and return the new grid
 def transition_function(grid, neighbourstates, neighbourcounts, terrain,
-                        burn_time, wind):
+                        burn_time, wind, water, step):
+    step[0] += 1
+
+    # Soak everything in the drop area that has not burnt out yet
+    if step[0] == DROP_STEP:
+        soaked = water & np.isin(grid, [CHAPARRAL, FOREST, CANYON, TOWN,
+                                        BURNING, FIRE_FRONT])
+        grid[soaked] = WET
+
+    # Once dry, soaked cells go back to their original fuel
+    if step[0] == DRY_STEP:
+        dry = grid == WET
+        grid[dry] = terrain[dry]
+        burn_time[dry] = 0
+
     # Work out every mask from the current grid before changing it
     has_fuel = np.isin(grid, [CHAPARRAL, FOREST, CANYON, TOWN])
     front = grid == FIRE_FRONT
@@ -183,8 +210,15 @@ def main():
     # Wind factor per neighbour direction, fixed for the whole run
     wind = wind_factors(WIND_FROM, WIND_SPEED)
 
-    # Create grid object using parameters from config + transition function
-    grid = Grid2D(config, (transition_function, terrain, burn_time, wind))
+    # Cells covered by the water drop
+    water = np.zeros((GRID_SIZE, GRID_SIZE), dtype=bool)
+    fill_rect(water, True, *DROP_AREA)
+
+    # Steps run so far, in an array so the transition function can update it
+    step = np.zeros(1)
+
+    grid = Grid2D(config, (transition_function, terrain, burn_time, wind,
+                           water, step))
 
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
