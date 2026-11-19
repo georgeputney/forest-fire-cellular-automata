@@ -28,10 +28,12 @@ BURNT_STATES = np.array([BURNT_CHAPARRAL, BURNT_FOREST, BURNT_CANYON,
 # every 10 minutes gives a top speed of 3 km/h, about 10% of an 8 m/s wind
 # (Cruz and Alexander 2019)
 STEP_MINUTES = 10
-# Hours each terrain keeps burning, midpoints of the team's ranges
-# (canyon 1 to 6 hours, chaparral 2 to 5 days, forest 2 to 4 weeks)
-BURN_HOURS = np.array([84, 504, 3.5, 0, 84])
-BURN_STEPS = BURN_HOURS * 60 / STEP_MINUTES
+
+# Shortest and longest hours each terrain burns, from the team's ranges
+# (canyon 1 to 6 hours, chaparral 2 to 5 days, forest 2 to 4 weeks).
+# Town uses the chaparral range
+BURN_HOURS_MIN = np.array([48, 336, 1, 0, 48])
+BURN_HOURS_MAX = np.array([120, 672, 6, 0, 120])
 
 # Cells that caught fire last step, which spread fire at full strength
 FIRE_FRONT = 10
@@ -141,6 +143,13 @@ def setup(args):
     return config
 
 
+# Picks how many steps each cell will burn for, anywhere in its terrain's range
+def random_burn_steps(terrain):
+    hours = np.random.uniform(BURN_HOURS_MIN[terrain], BURN_HOURS_MAX[terrain])
+    
+    return hours * 60 / STEP_MINUTES
+
+
 # Wind factor for fire arriving from each neighbour (Alexandridis eq. 3)
 def wind_factors(wind_from, speed):
     wind_to = wind_from + 180
@@ -151,7 +160,7 @@ def wind_factors(wind_from, speed):
 
 # Function to apply the transition rules and return the new grid
 def transition_function(grid, neighbourstates, neighbourcounts, terrain,
-                        burn_time, wind, water, step):
+                        burn_time, burn_steps, wind, water, step):
     step[0] += 1
 
     # Soak everything in the drop area that has not burnt out yet
@@ -185,7 +194,7 @@ def transition_function(grid, neighbourstates, neighbourcounts, terrain,
 
     # Count how long each burning cell has been alight
     burn_time[burning] += 1
-    burnt_out = burning & (burn_time >= BURN_STEPS[terrain])
+    burnt_out = burning & (burn_time >= burn_steps)
 
     grid[front] = BURNING
     grid[burnt_out] = BURNT_STATES[terrain[burnt_out]]
@@ -207,6 +216,9 @@ def main():
     # Number of steps each cell has been burning for, kept between steps
     burn_time = np.zeros((GRID_SIZE, GRID_SIZE))
 
+    # How many steps each cell will burn for, picked once per run
+    burn_steps = random_burn_steps(terrain)
+
     # Wind factor per neighbour direction, fixed for the whole run
     wind = wind_factors(WIND_FROM, WIND_SPEED)
 
@@ -217,8 +229,8 @@ def main():
     # Steps run so far, in an array so the transition function can update it
     step = np.zeros(1)
 
-    grid = Grid2D(config, (transition_function, terrain, burn_time, wind,
-                           water, step))
+    grid = Grid2D(config, (transition_function, terrain, burn_time,
+                           burn_steps, wind, water, step))
 
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
