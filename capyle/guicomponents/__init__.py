@@ -10,6 +10,7 @@ from rulenumberui import _RuleNumberUI
 from statecolorsui import _StateColorsUI
 from neighbourhoodui import _NeighbourhoodUI
 from configframe import _ConfigFrame
+from scenarioui import _ScenarioUI
 from playbackui import _PlaybackUI
 from screenshotui import _ScreenshotUI
 from newcawindow import _CreateCA

@@ -19,14 +19,21 @@ class _ConfigFrame(tk.Frame):
 
         self.separator()
 
+        # A CA with a fixed map keeps its own grid size, neighbourhood and
+        # initial grid, so those controls are made but not shown
+        fixed_map = getattr(self.ca_config, 'fixed_map', False)
+        # Generations the CA asked for, which Reset goes back to
+        self.loaded_generations = self.ca_config.num_generations
+
         if self.ca_config.dimensions == 2:
             self.griddims_entry = _GridDimensionsUI(self)
-            self.griddims_entry.pack(fill=tk.BOTH)
+            if not fixed_map:
+                self.griddims_entry.pack(fill=tk.BOTH)
+                self.separator()
         else:
             self.rulenum_entry = _RuleNumberUI(self)
             self.rulenum_entry.pack(fill=tk.BOTH)
-
-        self.separator()
+            self.separator()
 
         # Gererations
         self.generations_entry = _GenerationsUI(self)
@@ -36,15 +43,15 @@ class _ConfigFrame(tk.Frame):
 
         # Neighbourhood selector gui
         self.nhood_select = _NeighbourhoodUI(self, self.ca_config.dimensions)
-        self.nhood_select.pack(fill=tk.BOTH)
-
-        self.separator()
+        if not fixed_map:
+            self.nhood_select.pack(fill=tk.BOTH)
+            self.separator()
 
         # initial grid config options
         self.init_grid = _InitialGridUI(self, self.ca_config)
-        self.init_grid.pack(fill=tk.BOTH)
-
-        self.separator()
+        if not fixed_map:
+            self.init_grid.pack(fill=tk.BOTH)
+            self.separator()
 
         # Colour selector
         self.state_colors = _StateColorsUI(self, self.ca_config, self.ca_graph)
@@ -61,6 +68,9 @@ class _ConfigFrame(tk.Frame):
 
     def reset(self):
         """Reset all options to software defaults"""
+        if getattr(self.ca_config, 'fixed_map', False):
+            self.generations_entry.set(self.loaded_generations)
+            return
         if self.ca_config.dimensions == 2:
             self.griddims_entry.set_default()
         else:
@@ -73,7 +83,9 @@ class _ConfigFrame(tk.Frame):
         ca_config.num_generations = self.generations_entry.get_value()
         ca_config.state_colors = self.state_colors.get_value()
 
-        if ca_config.dimensions == 2:
+        if getattr(ca_config, 'fixed_map', False):
+            pass
+        elif ca_config.dimensions == 2:
             ca_config.grid_dims = self.griddims_entry.get_value()
             ca_config.nhood_arr = self.nhood_select.get_value() + 0
         else:

@@ -30,8 +30,12 @@ Click "Apply configuration & run CA" at the bottom left, then use Play or drag t
 
 ## Changing the scenario
 
-Every setting is at the top of `ca_descriptions/forest_fire.py`, under "Run settings".
-After changing one, reload the model with File > Open and choose `forest_fire.py`, then run it again.
+The Scenario menus beside the configuration panel set where the fire starts, the wind, the water drop, extra forest, and a firebreak round the town.
+Changing a menu does not change the map on its own: click "Apply configuration & run CA" again to run the new scenario.
+
+The same settings are at the top of `ca_descriptions/forest_fire.py`, under "Run settings", as the defaults the menus start on.
+Editing them there also allows values the menus do not offer, such as any wind bearing or forest rectangle.
+After editing the file, reload the model with File > Open and choose `forest_fire.py`.
 
 | Setting | What it does | Options |
 |---|---|---|
@@ -63,7 +67,7 @@ The figures in the presentation are medians over 20 runs with the same 20 random
 
 - `ca_descriptions/forest_fire.py` is the model: its settings, map, and transition rules.
 - `main.py` starts the CAPyLE GUI with the model loaded.
-- `capyle/` is the CAPyLE simulator, with small changes so it opens the model on start up and its run button fits on a laptop screen.
+- `capyle/` is the CAPyLE simulator, with small changes so it opens the model on start up, shows the Scenario menus (`capyle/guicomponents/scenarioui.py`), names each colour, hides the grid size and neighbourhood controls the model cannot use, and fits its run button on a laptop screen.
 
 ## Acknowledgements
 

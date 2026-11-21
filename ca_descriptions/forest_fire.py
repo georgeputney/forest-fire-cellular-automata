@@ -18,7 +18,8 @@ import capyle.utils as utils
 import numpy as np
 
 
-# Run settings. Change these, then reopen this file in the GUI (File > Open)
+# Run settings. These are the defaults: the Scenario menus in the GUI change
+# them for a run, or edit them here and reopen this file (File > Open)
 
 # Ignition sites from the brief, as (row, column) with row 0 at the north edge
 POWER_PLANT = (0, 0)
@@ -32,6 +33,33 @@ EXTRA_FOREST = None         # (left, right, bottom, top) in km, or None. The
 TOWN_FIREBREAK = None       # (sides, width km, gap km), or None. sides is
                             # 'north', 'u' (north, east and west) or 'ring'.
                             # The ring around the town is ('ring', 0.5, 0)
+
+# Choices the GUI offers for each run setting, as (setting, menu label,
+# [(choice shown, value)])
+GUI_CHOICES = [
+    ('IGNITION', 'Fire starts at',
+     [('Incinerator', INCINERATOR), ('Power plant', POWER_PLANT)]),
+    ('WIND_FROM', 'Wind from',
+     list(zip(['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'],
+              range(0, 360, 45)))),
+    ('WIND_SPEED', 'Wind speed',
+     [('%d m/s' % speed, speed) for speed in range(0, 14, 2)]),
+    ('DROP_PLAN', 'Water drop',
+     [('None', None),
+      ('Soak the fire at 0.5 h', 'fire_block'),
+      ('Box it in 6 km out at 1 h', 'box_6km'),
+      ('Box it in 12 km out at 3 h', 'box_12km'),
+      ('Ring round the town at 10 h', 'town_ring'),
+      ('Strip north of the town at 10 h', 'strip')]),
+    ('EXTRA_FOREST', 'Extra forest',
+     [('None', None), ('Forest wall, 10 km thick', (0, 50, 35, 45))]),
+    ('TOWN_FIREBREAK', 'Firebreak round the town',
+     [('None', None),
+      ('North side, 0.5 km wide', ('north', 0.5, 0)),
+      ('Three sides, 0.5 km wide', ('u', 0.5, 0)),
+      ('Ring, 0.5 km wide', ('ring', 0.5, 0)),
+      ('Ring, 1 km wide', ('ring', 1, 0))]),
+]
 
 
 # Cell states. The first five are the terrain types, in the order the
@@ -92,29 +120,26 @@ SPREAD_BEARINGS = np.array([135, 180, 225, 90, 270, 45, 0, 315])
 
 # Hours a soaked cell stays wet before it dries back to its own fuel
 WET_HOURS = 12
-# A 12.5 km x 1 km strip along the town's north edge, in km as (left, right,
-# bottom, top), the best of 1,020 positions tried. It lands at 10 h so it is
-# still wet when the fire arrives at about 15 h
+# Each drop is a list of rectangles in km as (left, right, bottom, top).
+# A 12.5 km x 1 km strip along the town's north edge, the best of 1,020
+# positions tried. It lands at 10 h so it is still wet when the fire arrives
+# at about 15 h
 DROP_HOURS = 10
 DROP_AREA = (12.5, 25, 5, 6)
-# A ring one cell wide touching the town on every side, as (row, column)
-# cells, only 24 cells
-TOWN_RING = [(row, col) for row in range(87, 94) for col in range(37, 44)
-             if row in (87, 93) or col in (37, 43)]
+# A ring 0.5 km wide touching the town on every side, only 24 cells
+TOWN_RING = [(18.25, 21.75, 6.25, 6.75), (18.25, 21.75, 3.25, 3.75),
+             (18.25, 18.75, 3.75, 6.25), (21.25, 21.75, 3.75, 6.25)]
 # A 3.5 km square over the incinerator, where the fire starts, 49 cells
-FIRE_BLOCK = [(row, col) for row in range(7) for col in range(93, 100)]
+FIRE_BLOCK = [(46.5, 50, 46.5, 50)]
 # L shapes boxing the fire into its corner, 6 km out (25 cells) and 12 km
 # out (49 cells), each a line south of the fire and a line west of it
-BOX_6KM = ([(12, col) for col in range(87, 100)]
-           + [(row, 87) for row in range(12)])
-BOX_12KM = ([(24, col) for col in range(75, 100)]
-            + [(row, 75) for row in range(24)])
+BOX_6KM = [(43.5, 50, 43.5, 44), (43.5, 44, 44, 50)]
+BOX_12KM = [(37.5, 50, 37.5, 38), (37.5, 38, 38, 50)]
 
-# Each drop plan as the cells soaked (None for the DROP_AREA strip) and the
-# hours after ignition it lands. Drops near the incinerator only work if
-# they land before the fire passes them, so each lands at the latest whole
-# or half hour that still works
-DROP_PLANS = {'strip': (None, DROP_HOURS),
+# Each drop plan as its rectangles and the hours after ignition it lands.
+# Drops near the incinerator only work if they land before the fire passes
+# them, so each lands at the latest whole or half hour that still works
+DROP_PLANS = {'strip': ([DROP_AREA], DROP_HOURS),
               'town_ring': (TOWN_RING, DROP_HOURS),
               'fire_block': (FIRE_BLOCK, 0.5),
               'box_6km': (BOX_6KM, 1),
@@ -130,6 +155,14 @@ def to_cells(km):
 def fill_rect(grid, state, left, right, bottom, top):
     grid[to_cells(50 - top):to_cells(50 - bottom),
          to_cells(left):to_cells(right)] = state
+
+
+# True/False grid of the cells inside any of the given rectangles in km
+def cells_in(*rects):
+    mask = np.zeros((GRID_SIZE, GRID_SIZE), dtype=bool)
+    for rect in rects:
+        fill_rect(mask, True, *rect)
+    return mask
 
 
 # The map from the brief, with any extra forest or firebreak from the run
@@ -148,8 +181,7 @@ def build_terrain():
 
     # Extra forest only replaces chaparral and canyon
     if EXTRA_FOREST is not None:
-        planted = np.zeros(grid.shape, dtype=bool)
-        fill_rect(planted, True, *EXTRA_FOREST)
+        planted = cells_in(EXTRA_FOREST)
         grid[planted & np.isin(grid, [CHAPARRAL, CANYON])] = FOREST
 
     if TOWN_FIREBREAK is not None:
@@ -164,25 +196,19 @@ def build_terrain():
 def firebreak_cells(sides, width, gap):
     left, right, bottom, top = TOWN_AREA
 
-    inner = np.zeros((GRID_SIZE, GRID_SIZE), dtype=bool)
-    fill_rect(inner, True, left - gap, right + gap, bottom - gap, top + gap)
+    inner = cells_in((left - gap, right + gap, bottom - gap, top + gap))
 
-    outer = np.zeros((GRID_SIZE, GRID_SIZE), dtype=bool)
-    fill_rect(outer, True, left - gap - width, right + gap + width,
-              bottom - gap - width, top + gap + width)
+    outer = cells_in((left - gap - width, right + gap + width,
+                      bottom - gap - width, top + gap + width))
     cleared = outer & ~inner
 
     # Leave out the sides that are not cleared
     if sides != 'ring':
-        south = np.zeros((GRID_SIZE, GRID_SIZE), dtype=bool)
-        fill_rect(south, True, 0, 50, 0, bottom - gap)
-        cleared &= ~south
-    
+        cleared &= ~cells_in((0, 50, 0, bottom - gap))
+
     if sides == 'north':
-        middle = np.zeros((GRID_SIZE, GRID_SIZE), dtype=bool)
-        fill_rect(middle, True, 0, 50, bottom - gap, top + gap)
-        cleared &= ~middle
-    
+        cleared &= ~cells_in((0, 50, bottom - gap, top + gap))
+
     return cleared
 
 
@@ -196,7 +222,7 @@ def fuel_of(terrain):
 def ignition_block(site):
     row = min(site[0], GRID_SIZE - IGNITION_CELLS)
     col = min(site[1], GRID_SIZE - IGNITION_CELLS)
-    
+
     return (slice(row, row + IGNITION_CELLS),
             slice(col, col + IGNITION_CELLS))
 
@@ -210,24 +236,26 @@ def drop_steps(drop_hours, wet_hours):
 # Cells a drop plan soaks, and the steps it lands and dries on. With no plan
 # nothing is soaked and the drop step is never reached
 def drop_plan(name):
-    water = np.zeros((GRID_SIZE, GRID_SIZE), dtype=bool)
     if name is None:
-        return water, np.array([-1, -1])
+        return cells_in(), np.array([-1, -1])
 
-    cells, drop_hours = DROP_PLANS[name]
-    if cells is None:
-        fill_rect(water, True, *DROP_AREA)
-    else:
-        rows, cols = zip(*cells)
-        water[list(rows), list(cols)] = True
+    rects, drop_hours = DROP_PLANS[name]
 
-    return water, drop_steps(drop_hours, WET_HOURS)
+    return cells_in(*rects), drop_steps(drop_hours, WET_HOURS)
 
 
 # Set up the config object used to interact with the GUI
 def setup(args):
     config_path = args[0]
     config = utils.load(config_path)
+
+    # The GUI shows a menu for each run setting and saves the choices made
+    # there in the config. They replace the run settings for this run
+    config.choice_menus = GUI_CHOICES
+    if getattr(config, 'choices', None) is None:
+        config.choices = {setting: globals()[setting]
+                          for setting, _, _ in GUI_CHOICES}
+    globals().update(config.choices)
 
     # -- THE CA MUST BE RELOADED IN THE GUI IF ANY OF THE BELOW ARE CHANGED --
 
@@ -236,6 +264,12 @@ def setup(args):
     config.states = (CHAPARRAL, FOREST, CANYON, LAKE, TOWN, BURNING,
                      BURNT_CHAPARRAL, BURNT_FOREST, BURNT_CANYON, BURNT_TOWN,
                      FIRE_FRONT, WET, FIREBREAK)
+
+    # Names the GUI shows beside each colour, in the order of config.states
+    config.state_names = ('Chaparral', 'Dense forest', 'Canyon', 'Lake',
+                          'Town', 'Burning', 'Burnt chaparral',
+                          'Burnt forest', 'Burnt canyon', 'Burnt town',
+                          'Fire front', 'Water drop', 'Firebreak')
 
     # Burnt states are greys so they stand apart from the greens of fuel
     config.state_colors = [(0.75, 0.75, 0), (0.3, 0.35, 0.15), (1, 1, 0.2),
@@ -247,6 +281,10 @@ def setup(args):
     config.grid_dims = (GRID_SIZE, GRID_SIZE)
     config.num_generations = 1000
     config.wrap = False
+    # The map is drawn for this grid size and the wind rules need all 8
+    # neighbours, so the GUI hides its grid size, neighbourhood, and initial
+    # grid controls
+    config.fixed_map = True
 
     terrain = build_terrain()
     terrain[ignition_block(IGNITION)] = FIRE_FRONT
@@ -277,7 +315,7 @@ def wind_factors(wind_from, speed):
     return np.exp(speed * (C1 + C2 * (np.cos(theta) - 1)))
 
 
-# Function to apply the transition rules and return the new grid
+# The forest fire rules, applied to every cell at once each step
 def transition_function(grid, neighbourstates, neighbourcounts, terrain,
                         burn_time, burn_steps, wind, water, drop, step):
     step[0] += 1
@@ -309,10 +347,9 @@ def transition_function(grid, neighbourstates, neighbourcounts, terrain,
         from_burning = neighbourstates[i] == BURNING
         p_escape[from_front] *= 1 - p[from_front]
         p_escape[from_burning] *= 1 - RESIDUAL_SPREAD * p[from_burning]
-    
+
     catches_fire = has_fuel & (np.random.random(grid.shape) < 1 - p_escape)
 
-    # Count how long each burning cell has been alight
     burn_time[burning] += 1
     burnt_out = burning & (burn_time >= burn_steps)
 
@@ -323,9 +360,8 @@ def transition_function(grid, neighbourstates, neighbourcounts, terrain,
     return grid
 
 
-# Main function that sets up, runs and saves CA
+# Runs the CA for the GUI and saves every step for playback
 def main():
-    # Get the config object from set up
     config = setup(sys.argv[1:])
 
     # Original terrain map, so burning cells still know what fuel they had
@@ -349,13 +385,8 @@ def main():
     grid = Grid2D(config, (transition_function, terrain, burn_time,
                            burn_steps, wind, water, drop, step))
 
-    # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
-
-    # Save updated config to file
     config.save()
-
-    # Save timeline to file
     utils.save(timeline, config.timeline_path)
 
 

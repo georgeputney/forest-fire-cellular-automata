@@ -7,7 +7,7 @@ from capyle.utils import (set_icon, get_filename_dialog, get_logo,
                           prerun_ca, run_ca, extract_states)
 from capyle.ca import CAConfig
 from capyle.guicomponents import (_ConfigFrame, _CAGraph, _ScreenshotUI,
-                                  _CreateCA, _AboutWindow)
+                                  _AboutWindow, _ScenarioUI)
 from capyle import _PlaybackControls
 
 
@@ -60,7 +60,6 @@ class Display(object):
         self.menubar = tk.Menu(self.root)
         file_menu = tk.Menu(self.menubar, tearoff=0)
         self.menubar.add_cascade(label="File", menu=file_menu)
-        file_menu.add_command(label="New", command=_CreateCA)
         file_menu.add_command(label="Open", command=lambda: self.load_ca(
             get_filename_dialog()))
 
@@ -82,6 +81,9 @@ class Display(object):
         # Split into left and right
         self.lframe = tk.Frame(self.root, height=500, width=200)
         self.lframe.pack(side=tk.LEFT, expand=tk.YES, fill=tk.BOTH)
+        # Column beside the configuration for any scenario menus the CA offers
+        self.mframe = tk.Frame(self.root)
+        self.mframe.pack(side=tk.LEFT, fill=tk.Y, pady=20)
         self.rframe = tk.Frame(self.root, height=500, width=300)
         self.rframe.pack(side=tk.RIGHT, expand=tk.YES, fill=tk.BOTH)
 
@@ -102,6 +104,7 @@ class Display(object):
                                  size=20, weight=tkFont.BOLD)
         # placeholder variables
         self.config_ui = None
+        self.scenario_ui = None
         self.lbotframe = None
 
     def init_config_ui(self):
@@ -126,6 +129,7 @@ class Display(object):
         self.loaded_title = tk.Label(self.lframe, text='', font=title_font)
         self.loaded_title.pack(side=tk.TOP)
         self.config_ui = None
+        self.scenario_ui = None
         self.lbotframe = None
 
     def add_configuration_controls(self):
@@ -150,6 +154,14 @@ class Display(object):
                                  command=self.run_ca)
         self.btn_run.pack(side=tk.BOTTOM, pady=10)
         self.lbotframe.pack(fill=tk.BOTH, expand=True)
+
+        # Scenario menus, if the CA description offers any
+        if self.scenario_ui is not None:
+            self.scenario_ui.destroy()
+            self.scenario_ui = None
+        if getattr(self.ca_config, 'choice_menus', None):
+            self.scenario_ui = _ScenarioUI(self.mframe, self.ca_config)
+            self.scenario_ui.pack(side=tk.TOP)
 
     def load_ca(self, filepath):
         """Load a CA description file
@@ -195,6 +207,8 @@ class Display(object):
         # update config object with values from gui
         self.ca_config, valid = self.config_ui.get_config(self.ca_config,
                                                           validate=True)
+        if self.scenario_ui is not None:
+            self.ca_config.choices = self.scenario_ui.get_choices()
         if valid:
             # runs ca with config, returns config and timeline
             self.ca_config, timeline = run_ca(self.ca_config)

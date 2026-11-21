@@ -35,6 +35,23 @@ class _StateColorsUI(tk.Frame, _ConfigUIComponent):
             self.selected_colors = np.array(self.ca_config.state_colors,
                                             dtype=float)
 
+        # A CA that names its states gets one named swatch per row, which
+        # doubles as a key to the map
+        names = getattr(self.ca_config, 'state_names', None)
+        if names is not None:
+            for i, name in enumerate(names):
+                frame = tk.Frame(self)
+                self.canvas[i] = tk.Canvas(
+                    frame, height=16, width=16,
+                    background=rgb_to_hex(*self.selected_colors[i]),
+                    bd=1, relief=tk.RAISED)
+                self.canvas[i].bind(
+                    "<Button-1>", lambda e, i=i: self.onclick(e, i))
+                self.canvas[i].pack(side=tk.LEFT, padx=(0, 6))
+                tk.Label(frame, text=name).pack(side=tk.LEFT)
+                frame.pack(anchor=tk.W, pady=1)
+            return
+
         outerframe = tk.Frame(self)
         for i, state in enumerate(self.states):
             frame = tk.Frame(outerframe)
