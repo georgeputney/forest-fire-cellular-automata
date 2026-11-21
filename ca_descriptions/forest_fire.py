@@ -123,6 +123,15 @@ FOREST_WALL = (0, 50, 35, 45)
 # to FOREST_WALL to watch the wall in the GUI
 EXTRA_FOREST = None
 
+# Cleared ground with no fuel, which never burns
+FIREBREAK = 12
+# Firebreak around the town for Q4 as (sides, width km, gap km), or None.
+# sides is 'north', 'u' (north, east and west) or 'ring'. gap is the
+# distance between the town's edge and the firebreak. The extreme case is
+# ('ring', 0.5, 0), which kept the fire out in all 20 runs
+TOWN_FIREBREAK = None
+# Town edges in km as (left, right, bottom, top)
+TOWN_AREA = (18.75, 21.25, 3.75, 6.25)
 
 
 def to_cells(km):
@@ -146,14 +155,46 @@ def build_terrain():
     fill_rect(grid, LAKE, 17.5, 22.5, 27.5, 37.5)
     fill_rect(grid, LAKE, 37.5, 40, 10, 22.5)
     fill_rect(grid, CANYON, 25, 45, 25, 27.5)
-    fill_rect(grid, TOWN, 18.75, 21.25, 3.75, 6.25)
+    fill_rect(grid, TOWN, *TOWN_AREA)
 
     if EXTRA_FOREST is not None:
         planted = np.zeros(grid.shape, dtype=bool)
         fill_rect(planted, True, *EXTRA_FOREST)
         grid[planted & np.isin(grid, [CHAPARRAL, CANYON])] = FOREST
 
+    if TOWN_FIREBREAK is not None:
+        cleared = firebreak_cells(*TOWN_FIREBREAK)
+        grid[cleared & np.isin(grid, [CHAPARRAL, FOREST, CANYON])] = FIREBREAK
+
     return grid
+
+
+# Cells cleared for a firebreak around the town, as a True/False grid
+def firebreak_cells(sides, width, gap):
+    left, right, bottom, top = TOWN_AREA
+    inner = np.zeros((GRID_SIZE, GRID_SIZE), dtype=bool)
+    fill_rect(inner, True, left - gap, right + gap, bottom - gap, top + gap)
+    outer = np.zeros((GRID_SIZE, GRID_SIZE), dtype=bool)
+    fill_rect(outer, True, left - gap - width, right + gap + width,
+              bottom - gap - width, top + gap + width)
+    cleared = outer & ~inner
+
+    # Leave out the sides that are not cleared
+    if sides != 'ring':
+        south = np.zeros((GRID_SIZE, GRID_SIZE), dtype=bool)
+        fill_rect(south, True, 0, 50, 0, bottom - gap)
+        cleared &= ~south
+    if sides == 'north':
+        middle = np.zeros((GRID_SIZE, GRID_SIZE), dtype=bool)
+        fill_rect(middle, True, 0, 50, bottom - gap, top + gap)
+        cleared &= ~middle
+    return cleared
+
+
+# Terrain the rules use for each cell. Firebreaks hold no fuel, so they
+# behave like lakes
+def fuel_of(terrain):
+    return np.where(terrain == FIREBREAK, LAKE, terrain)
 
 
 # Block of cells the fire starts on, kept inside the map at corner sites
@@ -175,14 +216,14 @@ def setup(args):
     config.dimensions = 2
     config.states = (CHAPARRAL, FOREST, CANYON, LAKE, TOWN, BURNING,
                      BURNT_CHAPARRAL, BURNT_FOREST, BURNT_CANYON, BURNT_TOWN,
-                     FIRE_FRONT, WET)
+                     FIRE_FRONT, WET, FIREBREAK)
 
     # Burnt states are greys so they stand apart from the greens of fuel
     config.state_colors = [(0.75, 0.75, 0), (0.3, 0.35, 0.15), (1, 1, 0.2),
                            (0.2, 0.6, 1), (0, 0, 0), (1, 0.2, 0),
                            (0.5, 0.5, 0.5), (0.35, 0.35, 0.35),
                            (0.65, 0.65, 0.65), (0.25, 0.25, 0.25), (1, 0.65, 0),
-                           (0.6, 0.85, 1)]
+                           (0.6, 0.85, 1), (0.85, 0.75, 0.6)]
 
     config.grid_dims = (GRID_SIZE, GRID_SIZE)
     config.num_generations = 1000
@@ -275,7 +316,7 @@ def main():
     config = setup(sys.argv[1:])
 
     # Original terrain map, so burning cells still know what fuel they had
-    terrain = build_terrain()
+    terrain = fuel_of(build_terrain())
 
     # Number of steps each cell has been burning for, kept between steps
     burn_time = np.zeros((GRID_SIZE, GRID_SIZE))
