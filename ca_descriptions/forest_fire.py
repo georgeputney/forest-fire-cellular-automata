@@ -84,6 +84,36 @@ DROP_AREA = (12.5, 25, 5, 6)
 DROP_STEP = int(DROP_HOURS * 60 / STEP_MINUTES)
 DRY_STEP = DROP_STEP + int(WET_HOURS * 60 / STEP_MINUTES)
 
+# Other drops for Results III, as (row, column) cells. A ring one cell wide
+# touching the town (rows 88 to 92, columns 38 to 42) on every side, only
+# 24 cells
+TOWN_RING = [(row, col) for row in range(87, 94) for col in range(37, 44)
+             if row in (87, 93) or col in (37, 43)]
+# Early drops at the incinerator, where the fire starts on rows 0 to 1,
+# columns 98 to 99 and spreads up to 6 cells an hour. FIRE_BLOCK soaks a
+# 3.5 km square over the fire, 49 cells, as a 50th cell would stick out
+FIRE_BLOCK = [(row, col) for row in range(7) for col in range(93, 100)]
+# L shapes boxing the fire into its corner, 6 km out (25 cells) and 12 km
+# out (49 cells), each a line south of the fire and a line west of it
+BOX_6KM = ([(12, col) for col in range(87, 100)]
+           + [(row, 87) for row in range(12)])
+BOX_12KM = ([(24, col) for col in range(75, 100)]
+            + [(row, 75) for row in range(24)])
+
+# Drop the GUI run uses, as the cells (None for the DROP_AREA strip) and the
+# hours after ignition it lands. Early drops only work if they land before
+# the fire passes them, so each lands at the last whole or half hour that
+# works (median delay over 20 runs in brackets): fire_block puts the fire
+# out at 0.5 h but does nothing at 1 h, box_6km at 1 h (+15.1 h) does
+# nothing at 2 h, box_12km at 3 h (+13.7 h) does nothing at 4 h. The strip
+# gives +4.0 h and town_ring +10.4 h
+DROP_PLANS = {'strip': (None, DROP_HOURS),
+              'town_ring': (TOWN_RING, DROP_HOURS),
+              'fire_block': (FIRE_BLOCK, 0.5),
+              'box_6km': (BOX_6KM, 1),
+              'box_12km': (BOX_12KM, 3)}
+DROP_PLAN = 'box_12km'
+
 
 
 def to_cells(km):
@@ -224,6 +254,9 @@ def transition_function(grid, neighbourstates, neighbourcounts, terrain,
 
 # Main function that sets up, runs and saves CA
 def main():
+    # The drop plan sets when the water lands, which the transition reads
+    global DROP_STEP, DRY_STEP
+
     # Get the config object from set up
     config = setup(sys.argv[1:])
 
@@ -239,9 +272,16 @@ def main():
     # Wind factor per neighbour direction, fixed for the whole run
     wind = wind_factors(WIND_FROM, WIND_SPEED)
 
-    # Cells covered by the water drop
+    # Cells covered by the water drop chosen in DROP_PLAN, and when it lands
+    cells, drop_hours = DROP_PLANS[DROP_PLAN]
     water = np.zeros((GRID_SIZE, GRID_SIZE), dtype=bool)
-    fill_rect(water, True, *DROP_AREA)
+    if cells is None:
+        fill_rect(water, True, *DROP_AREA)
+    else:
+        rows, cols = zip(*cells)
+        water[list(rows), list(cols)] = True
+    DROP_STEP = int(drop_hours * 60 / STEP_MINUTES)
+    DRY_STEP = DROP_STEP + int(WET_HOURS * 60 / STEP_MINUTES)
 
     # Steps run so far, in an array so the transition function can update it
     step = np.zeros(1)
