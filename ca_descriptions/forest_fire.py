@@ -128,10 +128,11 @@ def setup(args):
                      BURNT_CHAPARRAL, BURNT_FOREST, BURNT_CANYON, BURNT_TOWN,
                      FIRE_FRONT, WET)
 
+    # Burnt states are greys so they stand apart from the greens of fuel
     config.state_colors = [(0.75, 0.75, 0), (0.3, 0.35, 0.15), (1, 1, 0.2),
                            (0.2, 0.6, 1), (0, 0, 0), (1, 0.2, 0),
-                           (0.4, 0.38, 0.25), (0.25, 0.25, 0.2),
-                           (0.55, 0.52, 0.4), (0.45, 0.45, 0.45), (1, 0.65, 0),
+                           (0.5, 0.5, 0.5), (0.35, 0.35, 0.35),
+                           (0.65, 0.65, 0.65), (0.25, 0.25, 0.25), (1, 0.65, 0),
                            (0.6, 0.85, 1)]
 
     config.grid_dims = (GRID_SIZE, GRID_SIZE)
