@@ -16,10 +16,11 @@ class Display(object):
     ROOT_PATH = sys.path[0]
     CA_PATH = ROOT_PATH + "/ca_descriptions/"
 
-    def __init__(self):
+    def __init__(self, ca_file=None):
         """Initialise the main GUI
 
-        This is the main GUI and can be run simply by invoking this method
+        This is the main GUI and can be run simply by invoking this method.
+        If ca_file is given, that CA description is loaded on start up
         """
         self.root = tk.Tk()
         # bring window to front
@@ -47,6 +48,10 @@ class Display(object):
         self.ca_canvas = FigureCanvasTkAgg(self.ca_graph.fig,
                                            master=self.rcframe)
         self.ca_canvas.get_tk_widget().pack()
+
+        # Load the given CA description once the window is up
+        if ca_file is not None:
+            self.root.after_idle(self.load_ca, ca_file)
 
         self.root.mainloop()
 

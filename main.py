@@ -13,8 +13,8 @@ from capyle import Display
 
 
 def main():
-    """Initialise the GUI"""
-    w = Display()
+    """Initialise the GUI with the forest fire model already loaded"""
+    w = Display(Display.CA_PATH + 'forest_fire.py')
 
 if __name__ == "__main__":
     main()
