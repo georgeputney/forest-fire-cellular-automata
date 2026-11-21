@@ -6,3 +6,9 @@ __pycache__/
 # Written by CAPyLE on every run. The folder itself must exist for the GUI.
 /temp/*
 !/temp/.gitkeep
+
+# Batch study and plotting scripts, kept out of the submission
+batch_runs.py
+plot_results.py
+
+results/
