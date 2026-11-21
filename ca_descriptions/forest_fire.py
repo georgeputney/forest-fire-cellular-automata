@@ -114,6 +114,15 @@ DROP_PLANS = {'strip': (None, DROP_HOURS),
               'box_12km': (BOX_12KM, 3)}
 DROP_PLAN = 'box_12km'
 
+# The extreme forest case: the top forest band made 10 km thick and stretched
+# across the whole map (306 km2 of new forest). Median delay 0 h over 20
+# runs, and 1.2 h even at 20 km thick
+FOREST_WALL = (0, 50, 35, 45)
+# Extra dense forest planted for Q4 as (left, right, bottom, top) in km, or
+# None for the map as given. Only chaparral and canyon get replanted. Set it
+# to FOREST_WALL to watch the wall in the GUI
+EXTRA_FOREST = None
+
 
 
 def to_cells(km):
@@ -138,6 +147,11 @@ def build_terrain():
     fill_rect(grid, LAKE, 37.5, 40, 10, 22.5)
     fill_rect(grid, CANYON, 25, 45, 25, 27.5)
     fill_rect(grid, TOWN, 18.75, 21.25, 3.75, 6.25)
+
+    if EXTRA_FOREST is not None:
+        planted = np.zeros(grid.shape, dtype=bool)
+        fill_rect(planted, True, *EXTRA_FOREST)
+        grid[planted & np.isin(grid, [CHAPARRAL, CANYON])] = FOREST
 
     return grid
 
