@@ -72,10 +72,15 @@ IGNITION_CELLS = 2
 WET = 11
 
 # Water drop for Q3, enough water to cover about 12.5 km2
-DROP_HOURS = 6      # hours after ignition the water is dropped
+# Hours after ignition the water is dropped. The fire reaches the town at
+# 14.5 h at the earliest, so 10 h keeps the strip wet when it arrives
+# (mean +6.1 h, against +4.1 h for a 6 h drop). 12 h gives a mean of +6.7 h
+# but the same median (+4.0 h) and leaves only 2.5 h of margin
+DROP_HOURS = 10
 WET_HOURS = 12      # hours until soaked cells dry out
-# Drop area in km as (left, right, bottom, top), here 10 km x 1.25 km
-DROP_AREA = (15, 25, 7.5, 8.75)
+# Drop area in km as (left, right, bottom, top): a 12.5 km x 1 km strip
+# (50 cells) along the town's north edge, the best of 1,020 positions in Q3
+DROP_AREA = (12.5, 25, 5, 6)
 DROP_STEP = int(DROP_HOURS * 60 / STEP_MINUTES)
 DRY_STEP = DROP_STEP + int(WET_HOURS * 60 / STEP_MINUTES)
 
