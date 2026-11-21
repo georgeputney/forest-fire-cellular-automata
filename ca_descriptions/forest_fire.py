@@ -64,6 +64,9 @@ POWER_PLANT = (0, 0)
 INCINERATOR = (0, GRID_SIZE - 1)
 # Where the fire starts in this run
 IGNITION = INCINERATOR
+# The fire starts on a 2 x 2 block of cells (1 km2) at the site, so it cannot
+# die out on the first step by bad luck
+IGNITION_CELLS = 2
 
 # Cells soaked by the water drop, which cannot burn until they dry
 WET = 11
@@ -104,6 +107,14 @@ def build_terrain():
     return grid
 
 
+# Block of cells the fire starts on, kept inside the map at corner sites
+def ignition_block(site):
+    row = min(site[0], GRID_SIZE - IGNITION_CELLS)
+    col = min(site[1], GRID_SIZE - IGNITION_CELLS)
+    return (slice(row, row + IGNITION_CELLS),
+            slice(col, col + IGNITION_CELLS))
+
+
 # Set up the config object used to interact with the GUI
 def setup(args):
     config_path = args[0]
@@ -128,7 +139,7 @@ def setup(args):
     config.wrap = False
 
     terrain = build_terrain()
-    terrain[IGNITION] = FIRE_FRONT
+    terrain[ignition_block(IGNITION)] = FIRE_FRONT
     config.initial_grid = terrain
 
     # ----------------------------------------------------------------------
