@@ -1,39 +1,71 @@
-# CAPyLE
-CAPyLE is a cross-platform teaching tool designed and built as part of a final year computer science project. It aims to aid the teaching of cellular automata and how they can be used to model natural systems.
+# Forest fire cellular automaton
 
-It is written completely in python with minimal dependencies.
+A probabilistic cellular automaton of a forest fire spreading towards a town, built on the CAPyLE simulator for the COM3524 group project (Team 17).
 
-![CAPyLE Screenshot on macOS](http://pjworsley.github.io/capyle/sample.png)
+The map is a 100 x 100 grid of 500 m cells, each step is 10 minutes, and a run lasts 1,000 steps (about 7 days).
+Fire spreads to the 8 neighbouring cells with the ignition rule and wind constants from Alexandridis et al. (2008).
 
-## Installation
-The installation guide can be found on the [CAPyLE webpages](http://pjworsley.github.io/capyle/installationguide.html)
+## Setup
 
-## Usage
-Detailed usage can be found on the [CAPyLE webpages](http://pjworsley.github.io/capyle/).
+The code needs Python 3.7 with numpy, matplotlib, and tkinter.
+The conda environment file installs all of them:
 
-See below for a quickstart guide:
+```
+conda env create -f environment.yml
+conda activate COM3524
+```
 
-1. `git clone https://github.com/pjworsley/capyle.git [target-directory]`
-2. `cd [target-directory]`
-3. Execute main.py either by:
-    * `run.bat` / `run.sh`
-    * `python main.py`
-2. Use the menu bar to select File -> Open. This will open in the folder `./ca_descriptions`.
-3. Open one of the example files;
-  - `wolframs_1d.py` is Wolfram's elementary 1D automata
-  - `gol_2d.py` is Conway's 2D game of life
-4. The main GUI elements will now load, feel free to customise the CA parameters on the left hand panel
-5. Run the CA with your parameters by clicking the bottom left button 'Apply configuration & run CA'
-6. The progress bar will appear as the CA is run
-7. After the CA has been run, use the playback controls at the top and the slider at the bottom to run through the simulation.
-8. You may save an image of the currently displayed output using the 'Take screenshot' button
+## Running the model
+
+From this folder, run:
+
+```
+python main.py
+```
+
+On macOS or Linux `./run.sh` does the same, and on Windows `run.bat`.
+
+The GUI opens with the forest fire model already loaded.
+Click "Apply configuration & run CA" at the bottom left, then use Play or drag the slider under the map to watch the fire spread.
+
+## Changing the scenario
+
+Every setting is at the top of `ca_descriptions/forest_fire.py`, under "Run settings".
+After changing one, reload the model with File > Open and choose `forest_fire.py`, then run it again.
+
+| Setting | What it does | Options |
+|---|---|---|
+| `IGNITION` | Where the fire starts | `POWER_PLANT` or `INCINERATOR` |
+| `WIND_FROM` | Compass bearing the wind blows from | 0 (north), 45, 90, and so on |
+| `WIND_SPEED` | Wind speed in m/s | 8 by default |
+| `DROP_PLAN` | Which water drop lands, and when | `None`, `'strip'`, `'town_ring'`, `'fire_block'`, `'box_6km'`, or `'box_12km'` |
+| `EXTRA_FOREST` | Extra dense forest, as (left, right, bottom, top) in km | `None`, or `(0, 50, 35, 45)` for the forest wall |
+| `TOWN_FIREBREAK` | Cleared ground around the town, as (sides, width km, gap km) | `None`, or `('ring', 0.5, 0)` for the ring |
+
+## Reproducing the results
+
+Each run is random, so a single run will differ a little from these figures.
+The figures in the presentation are medians over 20 runs with the same 20 random seeds.
+
+| Result | Settings | Median over 20 runs |
+|---|---|---|
+| Results I, power plant | `IGNITION = POWER_PLANT` | Reaches the town at 15.2 h |
+| Results I, incinerator | `IGNITION = INCINERATOR` | Reaches the town at 14.9 h |
+| Results II, wind direction | `WIND_FROM` = 0, 45, 90, 135, 180, 225, 270, or 315 | 14 to 16 h from N, NE, or E; never from S, SW, or W |
+| Results III, soak the fire | `DROP_PLAN = 'fire_block'` (lands at 0.5 h) | Fire out in every run |
+| Results III, box it in | `DROP_PLAN = 'box_12km'` (lands at 3 h) | 13.7 h later than with no water |
+| Results III, ring the town | `DROP_PLAN = 'town_ring'` (lands at 10 h) | 10.4 h later than with no water |
+| Results III, forest wall | `EXTRA_FOREST = (0, 50, 35, 45)` | No delay |
+| Results III, firebreak ring | `TOWN_FIREBREAK = ('ring', 0.5, 0)` | Fire kept out in every run |
+| Results IV, sensitivity | `STEP_MINUTES`, `WIND_SPEED`, `RESIDUAL_SPREAD`, or the burn hours, under "Model parameters" | See Appendix E |
+
+## Files
+
+- `ca_descriptions/forest_fire.py` is the model: its settings, map, and transition rules.
+- `main.py` starts the CAPyLE GUI with the model loaded.
+- `capyle/` is the CAPyLE simulator, with small changes so it opens the model on start up and its run button fits on a laptop screen.
 
 ## Acknowledgements
-Special thanks to [Dr Dawn Walker](http://staffwww.dcs.shef.ac.uk/people/D.Walker/) for proposing and supervising this project.
 
-Also thanks to the COM2005 2016/2017 cohort for being the guinea-pigs!
-
-## Licence
-CAPyLE is licensed under a BSD licence, the terms of which can be found in the LICENCE file.
-
-Copyright 2017 Peter Worsley
+Built on [CAPyLE](https://github.com/pjworsley/capyle) by Peter Worsley, a cellular automaton teaching tool made at the University of Sheffield.
+CAPyLE is licensed under a BSD licence, the terms of which are in the LICENCE file.
